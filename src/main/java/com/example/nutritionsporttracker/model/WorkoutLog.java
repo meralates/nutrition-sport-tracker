@@ -1,7 +1,6 @@
 package com.example.nutritionsporttracker.model;
 
 import jakarta.persistence.*;
-
 import java.time.LocalDateTime;
 
 @Entity
@@ -18,6 +17,9 @@ public class WorkoutLog {
     private String exerciseName;
     private Integer durationMinutes;
     private Double caloriesBurned;
+
+    @Enumerated(EnumType.STRING)
+    private ExerciseType exerciseType; // Yeni alan eklendi
 
     private LocalDateTime createdAt;
 
@@ -59,6 +61,14 @@ public class WorkoutLog {
 
     public void setCaloriesBurned(Double caloriesBurned) {
         this.caloriesBurned = caloriesBurned;
+    }
+
+    public ExerciseType getExerciseType() {
+        return exerciseType;
+    }
+
+    public void setExerciseType(ExerciseType exerciseType) {
+        this.exerciseType = exerciseType;
     }
 
     public LocalDateTime getCreatedAt() {

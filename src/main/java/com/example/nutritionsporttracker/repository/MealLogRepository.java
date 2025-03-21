@@ -1,12 +1,13 @@
 package com.example.nutritionsporttracker.repository;
 
 import com.example.nutritionsporttracker.model.MealLog;
+import com.example.nutritionsporttracker.model.MealTimeType;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-
 import java.util.List;
 
-@Repository
 public interface MealLogRepository extends JpaRepository<MealLog, Long> {
     List<MealLog> findByUserId(Long userId);
+
+    // 📌 Kullanıcının belirli bir öğün geçmişini çekme
+    List<MealLog> findByUserIdAndMealTime(Long userId, MealTimeType mealTime);
 }

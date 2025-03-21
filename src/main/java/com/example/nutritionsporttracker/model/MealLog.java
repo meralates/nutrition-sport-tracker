@@ -2,33 +2,23 @@ package com.example.nutritionsporttracker.model;
 
 import jakarta.persistence.*;
 
-import java.time.LocalDateTime;
-
 @Entity
+@Table(name = "meal_logs")
 public class MealLog {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id")
-    private User user;
+    private Long userId;
+    private String foodName;
+    private double calories;
+    private double protein;
+    private double carbs;
+    private double fat;
 
     @Enumerated(EnumType.STRING)
-    private MealTime mealTime;
-
-    private String foodName;
-    private Double calories;
-    private Double protein;
-    private Double carbs;
-    private Double fat;
-
-    private LocalDateTime createdAt;
-
-    public enum MealTime {
-        BREAKFAST, LUNCH, DINNER, SNACK
-    }
+    private MealTimeType mealTime; // Yeni alan eklendi
 
     public Long getId() {
         return id;
@@ -38,20 +28,12 @@ public class MealLog {
         this.id = id;
     }
 
-    public User getUser() {
-        return user;
+    public Long getUserId() {
+        return userId;
     }
 
-    public void setUser(User user) {
-        this.user = user;
-    }
-
-    public MealTime getMealTime() {
-        return mealTime;
-    }
-
-    public void setMealTime(MealTime mealTime) {
-        this.mealTime = mealTime;
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 
     public String getFoodName() {
@@ -62,42 +44,43 @@ public class MealLog {
         this.foodName = foodName;
     }
 
-    public Double getCalories() {
+    public double getCalories() {
         return calories;
     }
 
-    public void setCalories(Double calories) {
+    public void setCalories(double calories) {
         this.calories = calories;
     }
 
-    public Double getProtein() {
+    public double getProtein() {
         return protein;
     }
 
-    public void setProtein(Double protein) {
+    public void setProtein(double protein) {
         this.protein = protein;
     }
 
-    public Double getCarbs() {
+    public double getCarbs() {
         return carbs;
     }
 
-    public void setCarbs(Double carbs) {
+    public void setCarbs(double carbs) {
         this.carbs = carbs;
     }
 
-    public Double getFat() {
+    public double getFat() {
         return fat;
     }
 
-    public void setFat(Double fat) {
+    public void setFat(double fat) {
         this.fat = fat;
     }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
+    public MealTimeType getMealTime() {
+        return mealTime;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }}
+    public void setMealTime(MealTimeType mealTime) {
+        this.mealTime = mealTime;
+    }
+}

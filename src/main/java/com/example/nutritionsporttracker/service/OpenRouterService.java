@@ -1,7 +1,7 @@
 package com.example.nutritionsporttracker.service;
 
 import com.example.nutritionsporttracker.model.User;
-import com.example.nutritionsporttracker.repository.UserRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -13,23 +13,25 @@ import java.util.Map;
 import java.util.Optional;
 
 @Service
-public class RecommendationService {
+public class OpenRouterService {
 
     private static final String API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
     @Value("${openrouter.api.key}")
     private String apiKey;
 
-    private final UserRepository userRepository;
+    private final UserService userService;
+    private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate;
 
-    public RecommendationService(UserRepository userRepository) {
-        this.userRepository = userRepository;
+    public OpenRouterService(UserService userService, ObjectMapper objectMapper) {
+        this.userService = userService;
+        this.objectMapper = objectMapper;
         this.restTemplate = new RestTemplate();
     }
 
-    public String generateDailyRecommendation(String email) {
-        Optional<User> optionalUser = userRepository.findByEmail(email);
+    public String generatePersonalizedRecommendation(String email) {
+        Optional<User> optionalUser = userService.findByEmail(email);
 
         if (optionalUser.isEmpty()) {
             return "Kullanıcı bulunamadı.";
@@ -46,12 +48,18 @@ public class RecommendationService {
     }
 
     private String generateUserPrompt(User user) {
+        String activityLevel = formatEnum(user.getActivityLevel());
+        String goal = formatEnum(user.getGoal());
+
         return """
-            Benim adım %s. %d yaşındayım, boyum %.1f cm ve kilom %.1f kg.
-            Aktivite seviyem: %s. Hedefim: %s.
-            Bugünkü beslenme ve antrenman önerilerini alabilir miyim?
-            """.formatted(user.getFullName(), user.getAge(), user.getHeight(), user.getWeight(),
-                user.getActivityLevel(), user.getGoal());
+            Benim adım %s. %d yaşındayım, boyum %.1f cm ve kilom %.1f kg. 
+            Aktivite seviyem: %s. Hedefim: %s. 
+            Bana günlük beslenme ve spor önerileri verir misin?
+            """.formatted(user.getFullName(), user.getAge(), user.getHeight(), user.getWeight(), activityLevel, goal);
+    }
+
+    private String formatEnum(Enum<?> enumValue) {
+        return enumValue.toString().replace("_", " ");
     }
 
     private String sendOpenRouterRequest(String userMessage) throws Exception {
@@ -65,7 +73,7 @@ public class RecommendationService {
 
         requestJson.put("messages", List.of(userMessageObj));
 
-        String jsonBody = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(requestJson);
+        String jsonBody = objectMapper.writeValueAsString(requestJson);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);

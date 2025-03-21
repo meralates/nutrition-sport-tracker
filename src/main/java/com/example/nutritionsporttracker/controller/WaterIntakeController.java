@@ -20,13 +20,11 @@ public class WaterIntakeController {
         this.waterIntakeService = waterIntakeService;
     }
 
-    // Kullanıcı için su alımını ekleme
     @PostMapping
     public ResponseEntity<WaterIntake> addWaterIntake(@RequestBody WaterIntake waterIntake) {
         return new ResponseEntity<>(waterIntakeService.addWaterIntake(waterIntake), HttpStatus.CREATED);
     }
 
-    // Kullanıcı ID'sine göre su alımını listeleme
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<WaterIntake>> getWaterIntakesByUserId(@PathVariable Long userId) {
         List<WaterIntake> waterIntakes = waterIntakeService.getWaterIntakesByUserId(userId);

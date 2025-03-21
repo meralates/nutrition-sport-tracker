@@ -10,7 +10,6 @@ public class RegisterRequest {
     private String activityLevel;
     private String goal;
 
-    // Getter ve Setter metodları
     public String getEmail() {
         return email;
     }
