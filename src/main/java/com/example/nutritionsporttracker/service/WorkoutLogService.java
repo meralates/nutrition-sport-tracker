@@ -26,6 +26,7 @@ public class WorkoutLogService {
         return workoutLogRepository.findByUserId(userId);
     }
 
+    //egzersizi seçerek
     public List<WorkoutLog> getWorkoutLogsByUserIdAndExerciseType(Long userId, ExerciseType exerciseType) {
         return workoutLogRepository.findByUserIdAndExerciseType(userId, exerciseType);
     }

@@ -32,7 +32,7 @@ public class WorkoutLogController {
         return workoutLogs.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(workoutLogs);
     }
 
-    @GetMapping("/history/filter")
+    @GetMapping("/history/filter")//egzersize göre filtre
     public ResponseEntity<List<WorkoutLog>> getWorkoutHistoryByExerciseType(
             @RequestParam Long userId, @RequestParam ExerciseType exerciseType) {
         List<WorkoutLog> workoutLogs = workoutLogService.getWorkoutLogsByUserIdAndExerciseType(userId, exerciseType);

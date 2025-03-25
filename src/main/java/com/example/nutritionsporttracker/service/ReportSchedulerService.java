@@ -22,7 +22,7 @@ public class ReportSchedulerService {
 
     @Scheduled(cron = "59 59 23 * * ?")
     public void scheduleDailyReport() {
-        System.out.println("Günlük rapor cron job çalışıyor...");
+        System.out.println("Daily report cron job is running...");
 
         List<User> users = userRepository.findAll();
 
@@ -33,12 +33,13 @@ public class ReportSchedulerService {
                     "Here is your daily report:\n\n" + report.getReportText();
 
             emailService.sendEmail(user.getEmail(), "Your Daily Report", emailBody);
-            System.out.println("Günlük rapor gönderildi: " + user.getEmail());
+            System.out.println("Daily report sent: " + user.getEmail());
         }
     }
+
     @Scheduled(cron = "0 0 23 ? * SUN")
     public void scheduleWeeklyReport() {
-        System.out.println("Haftalık rapor cron job çalışıyor...");
+        System.out.println("Weekly report cron job is running...");
 
         List<User> users = userRepository.findAll();
 
@@ -49,7 +50,7 @@ public class ReportSchedulerService {
                     "Here is your weekly report:\n\n" + report.getReportText();
 
             emailService.sendEmail(user.getEmail(), "Your Weekly Report", emailBody);
-            System.out.println("Haftalık rapor gönderildi: " + user.getEmail());
+            System.out.println("Weekly report sent: " + user.getEmail());
         }
     }
 }

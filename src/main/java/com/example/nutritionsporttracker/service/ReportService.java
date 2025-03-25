@@ -44,7 +44,7 @@ public class ReportService {
 
     private User getUserById(Long userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Kullanıcı bulunamadı."));
+                .orElseThrow(() -> new RuntimeException("User not found."));
     }
 
     private List<Reports> getLastWeekReports() {
@@ -54,7 +54,7 @@ public class ReportService {
 
     private void validateWeeklyData(List<Reports> weeklyReports) {
         if (weeklyReports.isEmpty()) {
-            throw new RuntimeException("Geçen hafta için yeterli veri bulunamadı.");
+            throw new RuntimeException("No sufficient data found for last week.");
         }
     }
 
@@ -84,16 +84,16 @@ public class ReportService {
 
     private String createPromptForAI(User user, List<Reports> weeklyReports) {
         return """
-            Kullanıcı: %s, %d yaşında, %s kg, %s cm.
-            Aktivite seviyesi: %s, Hedef: %s.
-            Geçen haftaki beslenme ve egzersiz verileri:
-            - Ortalama alınan kalori: %.2f kcal
-            - Ortalama yakılan kalori: %.2f kcal
-            - Ortalama protein: %.2f g
-            - Ortalama karbonhidrat: %.2f g
-            - Ortalama yağ: %.2f g
-            - Ortalama su tüketimi: %.2f L
-            Kullanıcı için haftalık sağlık analizini yap ve önerilerde bulun.
+            User: %s, %d years old, %s kg, %s cm.
+            Activity level: %s, Goal: %s.
+            Last week's nutrition and exercise data:
+            - Average calories in: %.2f kcal
+            - Average calories out: %.2f kcal
+            - Average protein: %.2f g
+            - Average carbs: %.2f g
+            - Average fat: %.2f g
+            - Average water intake: %.2f L
+            Perform a weekly health analysis for the user and provide recommendations.
             """
                 .formatted(user.getFullName(), user.getAge(), user.getWeight(), user.getHeight(),
                         user.getActivityLevel(), user.getGoal(),
@@ -125,7 +125,7 @@ public class ReportService {
                 "https://openrouter.ai/api/v1/chat/completions",
                 HttpMethod.POST, entity, String.class);
 
-        return response.getStatusCode() == HttpStatus.OK ? response.getBody() : "LLM API hatası!";
+        return response.getStatusCode() == HttpStatus.OK ? response.getBody() : "LLM API error!";
     }
 
     public Reports addReport(Reports report) {

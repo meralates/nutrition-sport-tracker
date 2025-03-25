@@ -9,7 +9,6 @@ import com.example.nutritionsporttracker.service.NutritionixService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
-
 import java.util.List;
 
 @RestController
@@ -24,7 +23,7 @@ public class MealLogController {
         this.nutritionixService = nutritionixService;
     }
 
-    @GetMapping("/history")
+    @GetMapping("/history")//gecmişi
     public ResponseEntity<List<MealLog>> getMealHistory(@RequestParam Long userId) {
         List<MealLog> mealLogs = mealLogService.getMealLogsByUserId(userId);
         return mealLogs.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(mealLogs);

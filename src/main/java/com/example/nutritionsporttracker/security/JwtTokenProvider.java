@@ -29,7 +29,6 @@ public class JwtTokenProvider {
                 .compact();
     }
 
-
     public boolean validateToken(String token) {
         try {
             Jwts.parser().setSigningKey(jwtSecret).parseClaimsJws(token);
@@ -39,7 +38,6 @@ public class JwtTokenProvider {
         }
     }
 
-    // ✅ Token'dan kullanıcı adı çıkarma
     public String getUsernameFromToken(String token) {
         Claims claims = Jwts.parser()
                 .setSigningKey(jwtSecret)

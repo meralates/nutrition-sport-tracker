@@ -4,6 +4,7 @@ import com.example.nutritionsporttracker.service.RecommendationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+
 @RestController
 @RequestMapping("/api/recommendations")
 public class RecommendationController {
