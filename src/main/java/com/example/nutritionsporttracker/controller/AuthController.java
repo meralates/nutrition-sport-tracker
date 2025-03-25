@@ -32,11 +32,24 @@ public class AuthController {
     public ResponseEntity<String> login(@RequestBody User user) {
         Optional<User> foundUser = userService.findByEmail(user.getEmail());
 
-        if (foundUser.isPresent() && passwordEncoder.matches(user.getPassword(), foundUser.get().getPassword())) {
-            String token = jwtProvider.generateToken(foundUser.get().getEmail());
-            return ResponseEntity.ok(token);
+        if (foundUser.isPresent()) {
+            String rawPassword = user.getPassword();
+            String encodedPassword = foundUser.get().getPassword();
+
+            System.out.println("Girilen Şifre: " + rawPassword);
+            System.out.println("Veritabanındaki Hashlenmiş Şifre: " + encodedPassword);
+
+            if (passwordEncoder.matches(rawPassword, encodedPassword)) {
+                String token = jwtProvider.generateToken(foundUser.get().getEmail());
+                return ResponseEntity.ok(token);
+            } else {
+                System.out.println("Şifre eşleşmedi!");
+            }
+        } else {
+            System.out.println("Kullanıcı bulunamadı!");
         }
 
         return ResponseEntity.status(401).body("Invalid credentials");
     }
+
 }

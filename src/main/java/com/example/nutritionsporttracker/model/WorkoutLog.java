@@ -19,7 +19,7 @@ public class WorkoutLog {
     private Double caloriesBurned;
 
     @Enumerated(EnumType.STRING)
-    private ExerciseType exerciseType; // Yeni alan eklendi
+    private ExerciseType exerciseType;
 
     private LocalDateTime createdAt;
 

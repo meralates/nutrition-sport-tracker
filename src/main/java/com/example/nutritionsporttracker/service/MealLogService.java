@@ -23,7 +23,6 @@ public class MealLogService {
         return mealLogRepository.findByUserId(userId);
     }
 
-    // Kullanıcının belirli bir öğün geçmişini çekme
     public List<MealLog> getMealLogsByUserIdAndMealTime(Long userId, MealTimeType mealTime) {
         return mealLogRepository.findByUserIdAndMealTime(userId, mealTime);
     }

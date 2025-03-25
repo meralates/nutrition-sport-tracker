@@ -24,15 +24,13 @@ public class MealLogController {
         this.nutritionixService = nutritionixService;
     }
 
-    // 📌 Kullanıcının beslenme geçmişini getir
     @GetMapping("/history")
     public ResponseEntity<List<MealLog>> getMealHistory(@RequestParam Long userId) {
         List<MealLog> mealLogs = mealLogService.getMealLogsByUserId(userId);
         return mealLogs.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(mealLogs);
     }
 
-    // 📌 Kullanıcının yeni bir yemek kaydı eklemesi
-    @PostMapping
+    @PostMapping("/meal")
     public ResponseEntity<Mono<MealLog>> addMealLog(@RequestParam Long userId, @RequestParam String foodName) {
         Mono<ProductSearchResponse> foodData = nutritionixService.searchProductByName(foodName);
 
@@ -58,13 +56,12 @@ public class MealLogController {
         return ResponseEntity.ok(mealLogMono);
     }
 
-    // 📌 Kullanıcının spesifik yemek kayıtlarını getirme
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<MealLog>> getMealLogsByUserId(@PathVariable Long userId) {
         List<MealLog> mealLogs = mealLogService.getMealLogsByUserId(userId);
         return mealLogs.isEmpty() ? ResponseEntity.notFound().build() : ResponseEntity.ok(mealLogs);
     }
-    // 📌 Belirli bir öğün için yemek geçmişi getir
+
     @GetMapping("/history/filter")
     public ResponseEntity<List<MealLog>> getMealHistoryByMealTime(
             @RequestParam Long userId, @RequestParam MealTimeType mealTime) {

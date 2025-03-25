@@ -8,6 +8,5 @@ import java.util.List;
 public interface MealLogRepository extends JpaRepository<MealLog, Long> {
     List<MealLog> findByUserId(Long userId);
 
-    // 📌 Kullanıcının belirli bir öğün geçmişini çekme
     List<MealLog> findByUserIdAndMealTime(Long userId, MealTimeType mealTime);
 }

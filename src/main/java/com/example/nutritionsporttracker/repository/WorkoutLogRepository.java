@@ -9,6 +9,5 @@ import java.util.List;
 public interface WorkoutLogRepository extends JpaRepository<WorkoutLog, Long> {
     List<WorkoutLog> findByUserId(Long userId);
 
-    // 📌 Kullanıcının belirli bir egzersiz türüne göre geçmişini çekme
     List<WorkoutLog> findByUserIdAndExerciseType(Long userId, ExerciseType exerciseType);
 }

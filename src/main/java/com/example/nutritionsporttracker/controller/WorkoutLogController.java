@@ -26,14 +26,12 @@ public class WorkoutLogController {
         return new ResponseEntity<>(workoutLogService.addWorkoutLog(workoutLog), HttpStatus.CREATED);
     }
 
-    // 📌 Kullanıcının tüm egzersiz geçmişini getir
     @GetMapping("/history")
     public ResponseEntity<List<WorkoutLog>> getWorkoutHistory(@RequestParam Long userId) {
         List<WorkoutLog> workoutLogs = workoutLogService.getWorkoutLogsByUserId(userId);
         return workoutLogs.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(workoutLogs);
     }
 
-    // 📌 Kullanıcının belirli bir egzersiz türüne göre geçmişini getir
     @GetMapping("/history/filter")
     public ResponseEntity<List<WorkoutLog>> getWorkoutHistoryByExerciseType(
             @RequestParam Long userId, @RequestParam ExerciseType exerciseType) {

@@ -26,7 +26,6 @@ public class WorkoutLogService {
         return workoutLogRepository.findByUserId(userId);
     }
 
-    // 📌 Kullanıcının belirli bir egzersiz türüne göre geçmişini çekme
     public List<WorkoutLog> getWorkoutLogsByUserIdAndExerciseType(Long userId, ExerciseType exerciseType) {
         return workoutLogRepository.findByUserIdAndExerciseType(userId, exerciseType);
     }

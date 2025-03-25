@@ -13,8 +13,6 @@ public class RecommendationController {
     public RecommendationController(RecommendationService recommendationService) {
         this.recommendationService = recommendationService;
     }
-
-    // 📌 Günlük öneri oluştur
     @GetMapping("/daily")
     public ResponseEntity<String> getDailyRecommendation(@RequestParam String email) {
         String recommendation = recommendationService.generateDailyRecommendation(email);

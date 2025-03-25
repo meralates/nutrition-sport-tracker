@@ -20,10 +20,9 @@ public class ReportSchedulerService {
         this.userRepository = userRepository;
     }
 
-    // 📌 Günlük raporları her gece 23:59'da gönder
     @Scheduled(cron = "59 59 23 * * ?")
     public void scheduleDailyReport() {
-        System.out.println("📢 Günlük rapor cron job çalışıyor...");
+        System.out.println("Günlük rapor cron job çalışıyor...");
 
         List<User> users = userRepository.findAll();
 
@@ -34,14 +33,12 @@ public class ReportSchedulerService {
                     "Here is your daily report:\n\n" + report.getReportText();
 
             emailService.sendEmail(user.getEmail(), "Your Daily Report", emailBody);
-            System.out.println("📧 Günlük rapor gönderildi: " + user.getEmail());
+            System.out.println("Günlük rapor gönderildi: " + user.getEmail());
         }
     }
-
-    // 📌 Haftalık raporları her Pazar 23:00'da gönder
     @Scheduled(cron = "0 0 23 ? * SUN")
     public void scheduleWeeklyReport() {
-        System.out.println("📢 Haftalık rapor cron job çalışıyor...");
+        System.out.println("Haftalık rapor cron job çalışıyor...");
 
         List<User> users = userRepository.findAll();
 
@@ -52,7 +49,7 @@ public class ReportSchedulerService {
                     "Here is your weekly report:\n\n" + report.getReportText();
 
             emailService.sendEmail(user.getEmail(), "Your Weekly Report", emailBody);
-            System.out.println("📧 Haftalık rapor gönderildi: " + user.getEmail());
+            System.out.println("Haftalık rapor gönderildi: " + user.getEmail());
         }
     }
 }

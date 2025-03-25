@@ -18,7 +18,7 @@ public class MealLog {
     private double fat;
 
     @Enumerated(EnumType.STRING)
-    private MealTimeType mealTime; // Yeni alan eklendi
+    private MealTimeType mealTime;
 
     public Long getId() {
         return id;

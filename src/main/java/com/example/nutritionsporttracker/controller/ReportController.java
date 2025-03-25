@@ -28,7 +28,6 @@ public class ReportController {
         return reports.isEmpty() ? ResponseEntity.notFound().build() : ResponseEntity.ok(reports);
     }
 
-    // 📌 Kullanıcı için haftalık rapor oluştur ve getir
     @GetMapping("/weekly")
     public ResponseEntity<Reports> getWeeklyReport(@RequestParam Long userId) {
         Reports weeklyReport = reportService.generateWeeklyReport(userId);
