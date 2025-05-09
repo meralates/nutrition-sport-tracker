@@ -21,7 +21,7 @@ public class ReportService {
 
     private final ReportRepository reportRepository;
     private final UserRepository userRepository;
-    private final RestTemplate restTemplate;
+    private final RestTemplate restTemplate = new RestTemplate();
 
     @Value("${openrouter.api.key}")
     private String apiKey;
@@ -29,103 +29,107 @@ public class ReportService {
     public ReportService(ReportRepository reportRepository, UserRepository userRepository) {
         this.reportRepository = reportRepository;
         this.userRepository = userRepository;
-        this.restTemplate = new RestTemplate();
     }
 
     public Reports generateWeeklyReport(Long userId) {
         User user = getUserById(userId);
-        List<Reports> weeklyReports = getLastWeekReports();
-        validateWeeklyData(weeklyReports);
+        List<Reports> weeklyReports = getReportsFromLastWeek();
 
-        String aiAnalysis = getWeeklyAnalysisFromAI(user, weeklyReports);
+        if (weeklyReports.isEmpty()) {
+            throw new RuntimeException("No reports found for the past 7 days.");
+        }
 
-        return saveWeeklyReport(user, weeklyReports, aiAnalysis);
+        ReportAverages averages = calculateAverages(weeklyReports);
+        String aiAnalysis = getWeeklyAnalysisFromAI(user, averages);
+
+        return saveReport(user, averages, aiAnalysis);
     }
 
     private User getUserById(Long userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found."));
+                .orElseThrow(() -> new RuntimeException("User with ID " + userId + " not found."));
     }
 
-    private List<Reports> getLastWeekReports() {
+    private List<Reports> getReportsFromLastWeek() {
         LocalDateTime oneWeekAgo = LocalDateTime.now().minus(WEEK_DURATION_DAYS, ChronoUnit.DAYS);
         return reportRepository.findByGeneratedAtAfter(oneWeekAgo);
     }
 
-    private void validateWeeklyData(List<Reports> weeklyReports) {
-        if (weeklyReports.isEmpty()) {
-            throw new RuntimeException("No sufficient data found for last week.");
-        }
+    private ReportAverages calculateAverages(List<Reports> reports) {
+        return new ReportAverages(
+                avg(reports, Reports::getCaloriesIn),
+                avg(reports, Reports::getCaloriesOut),
+                avg(reports, Reports::getAvgProtein),
+                avg(reports, Reports::getAvgCarbs),
+                avg(reports, Reports::getAvgFat),
+                avg(reports, Reports::getAvgWater)
+        );
     }
 
-    private Reports saveWeeklyReport(User user, List<Reports> weeklyReports, String aiAnalysis) {
-        Reports newReport = new Reports();
-        newReport.setUser(user);
-        newReport.setGeneratedAt(LocalDateTime.now());
-        newReport.setReportText(aiAnalysis);
-        newReport.setCaloriesIn(calculateAverage(weeklyReports, Reports::getCaloriesIn));
-        newReport.setCaloriesOut(calculateAverage(weeklyReports, Reports::getCaloriesOut));
-        newReport.setAvgProtein(calculateAverage(weeklyReports, Reports::getAvgProtein));
-        newReport.setAvgCarbs(calculateAverage(weeklyReports, Reports::getAvgCarbs));
-        newReport.setAvgFat(calculateAverage(weeklyReports, Reports::getAvgFat));
-        newReport.setAvgWater(calculateAverage(weeklyReports, Reports::getAvgWater));
-
-        return reportRepository.save(newReport);
+    private double avg(List<Reports> list, ToDoubleFunction<Reports> mapper) {
+        return list.stream().mapToDouble(mapper).average().orElse(0.0);
     }
 
-    private double calculateAverage(List<Reports> reports, ToDoubleFunction<Reports> getter) {
-        return reports.stream().mapToDouble(getter).average().orElse(0);
+    private Reports saveReport(User user, ReportAverages avg, String aiText) {
+        Reports report = new Reports();
+        report.setUser(user);
+        report.setGeneratedAt(LocalDateTime.now());
+        report.setReportText(aiText);
+        report.setCaloriesIn(avg.caloriesIn());
+        report.setCaloriesOut(avg.caloriesOut());
+        report.setAvgProtein(avg.protein());
+        report.setAvgCarbs(avg.carbs());
+        report.setAvgFat(avg.fat());
+        report.setAvgWater(avg.water());
+
+        return reportRepository.save(report);
     }
 
-    private String getWeeklyAnalysisFromAI(User user, List<Reports> weeklyReports) {
-        String prompt = createPromptForAI(user, weeklyReports);
-        return sendOpenRouterRequest(prompt);
-    }
-
-    private String createPromptForAI(User user, List<Reports> weeklyReports) {
-        return """
+    private String getWeeklyAnalysisFromAI(User user, ReportAverages avg) {
+        String prompt = """
             User: %s, %d years old, %s kg, %s cm.
             Activity level: %s, Goal: %s.
-            Last week's nutrition and exercise data:
-            - Average calories in: %.2f kcal
-            - Average calories out: %.2f kcal
-            - Average protein: %.2f g
-            - Average carbs: %.2f g
-            - Average fat: %.2f g
-            - Average water intake: %.2f L
-            Perform a weekly health analysis for the user and provide recommendations.
+            Last week's nutrition and exercise summary:
+            - Calories in: %.2f kcal
+            - Calories out: %.2f kcal
+            - Protein: %.2f g
+            - Carbs: %.2f g
+            - Fat: %.2f g
+            - Water: %.2f L
+            Please analyze the data and suggest improvements.
             """
                 .formatted(user.getFullName(), user.getAge(), user.getWeight(), user.getHeight(),
                         user.getActivityLevel(), user.getGoal(),
-                        calculateAverage(weeklyReports, Reports::getCaloriesIn),
-                        calculateAverage(weeklyReports, Reports::getCaloriesOut),
-                        calculateAverage(weeklyReports, Reports::getAvgProtein),
-                        calculateAverage(weeklyReports, Reports::getAvgCarbs),
-                        calculateAverage(weeklyReports, Reports::getAvgFat),
-                        calculateAverage(weeklyReports, Reports::getAvgWater));
+                        avg.caloriesIn(), avg.caloriesOut(), avg.protein(), avg.carbs(), avg.fat(), avg.water());
+
+        return callAI(prompt);
     }
 
-    private String sendOpenRouterRequest(String userMessage) {
+    private String callAI(String prompt) {
         Map<String, Object> requestJson = new HashMap<>();
         requestJson.put("model", "mistralai/mistral-7b-instruct");
         requestJson.put("temperature", 0.7);
-
-        Map<String, String> userMessageObj = new HashMap<>();
-        userMessageObj.put("role", "user");
-        userMessageObj.put("content", userMessage);
-
-        requestJson.put("messages", List.of(userMessageObj));
+        requestJson.put("messages", List.of(Map.of("role", "user", "content", prompt)));
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("Authorization", "Bearer " + apiKey);
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestJson, headers);
-        ResponseEntity<String> response = restTemplate.exchange(
+        ResponseEntity<Map> response = restTemplate.exchange(
                 "https://openrouter.ai/api/v1/chat/completions",
-                HttpMethod.POST, entity, String.class);
+                HttpMethod.POST, entity, Map.class);
 
-        return response.getStatusCode() == HttpStatus.OK ? response.getBody() : "LLM API error!";
+        if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+            try {
+                List<Map<String, Object>> choices = (List<Map<String, Object>>) response.getBody().get("choices");
+                Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
+                return (String) message.get("content");
+            } catch (Exception e) {
+                return "AI response parsing error.";
+            }
+        }
+        return "AI analysis request failed.";
     }
 
     public Reports addReport(Reports report) {
@@ -135,4 +139,16 @@ public class ReportService {
     public List<Reports> getReportsByUserId(Long userId) {
         return reportRepository.findByUserId(userId);
     }
+
+    /**
+     * DTO class to bundle average data
+     */
+    private record ReportAverages(
+            double caloriesIn,
+            double caloriesOut,
+            double protein,
+            double carbs,
+            double fat,
+            double water
+    ) {}
 }

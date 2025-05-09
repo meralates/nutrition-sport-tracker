@@ -1,5 +1,7 @@
 package com.example.nutritionsporttracker.controller;
 
+import com.example.nutritionsporttracker.dto.WaterIntakeRequest;
+import com.example.nutritionsporttracker.model.User;
 import com.example.nutritionsporttracker.model.WaterIntake;
 import com.example.nutritionsporttracker.service.WaterIntakeService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -7,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -21,9 +24,18 @@ public class WaterIntakeController {
     }
 
     @PostMapping
-    public ResponseEntity<WaterIntake> addWaterIntake(@RequestBody WaterIntake waterIntake) {
+    public ResponseEntity<WaterIntake> addWaterIntake(@RequestBody WaterIntakeRequest request) {
+        WaterIntake waterIntake = new WaterIntake();
+        User user = new User();
+        user.setId(request.getUserId());
+
+        waterIntake.setUser(user);
+        waterIntake.setAmountMl(request.getAmount());
+        waterIntake.setCreatedAt(LocalDateTime.now());
+
         return new ResponseEntity<>(waterIntakeService.addWaterIntake(waterIntake), HttpStatus.CREATED);
     }
+
 
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<WaterIntake>> getWaterIntakesByUserId(@PathVariable Long userId) {

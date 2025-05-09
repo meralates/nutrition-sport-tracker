@@ -3,13 +3,13 @@ package com.example.nutritionsporttracker.dto;
 import java.util.List;
 
 public class ProductSearchResponse {
-    private List<FoodItem> common;
+    private List<FoodItem> foods;
 
-    public List<FoodItem> getCommon() {
-        return common;
+    public List<FoodItem> getFoods() {
+        return foods;
     }
 
-    public void setCommon(List<FoodItem> common) {
-        this.common = common;
+    public void setFoods(List<FoodItem> foods) {
+        this.foods = foods;
     }
 }

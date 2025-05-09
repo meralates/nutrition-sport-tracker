@@ -7,10 +7,10 @@ import org.springframework.stereotype.Service;
 @Service
 public class EmailService {
 
-    private final JavaMailSender mailSender;
+    private final JavaMailSender javaMailSender;
 
-    public EmailService(JavaMailSender mailSender) {
-        this.mailSender = mailSender;
+    public EmailService(JavaMailSender javaMailSender) {
+        this.javaMailSender = javaMailSender;
     }
 
     public void sendEmail(String to, String subject, String text) {
@@ -18,8 +18,7 @@ public class EmailService {
         message.setTo(to);
         message.setSubject(subject);
         message.setText(text);
-
-        mailSender.send(message);
-        System.out.println("Email sent successfully to: " + to);
+        message.setFrom("meralates2002@gmail.com"); //gönderen
+        javaMailSender.send(message);
     }
 }

@@ -5,6 +5,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 public class NutritionixService {
@@ -21,13 +23,16 @@ public class NutritionixService {
         this.webClient = webClientBuilder.baseUrl("https://trackapi.nutritionix.com/v2").build();
     }
 
-    public Mono<ProductSearchResponse> searchProductByName(String productName) {
-        return this.webClient.get()
-                .uri(uriBuilder -> uriBuilder.path("/search/instant")
-                        .queryParam("query", productName)
-                        .build())
+    public Mono<ProductSearchResponse> searchProductByName(String query) {
+        Map<String, String> requestBody = new HashMap<>();
+        requestBody.put("query", query);
+
+        return this.webClient.post()
+                .uri("/natural/nutrients")
                 .header("x-app-id", appId)
                 .header("x-app-key", apiKey)
+                .header("Content-Type", "application/json")
+                .bodyValue(requestBody)
                 .retrieve()
                 .bodyToMono(ProductSearchResponse.class);
     }

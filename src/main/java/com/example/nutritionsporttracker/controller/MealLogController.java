@@ -1,14 +1,20 @@
 package com.example.nutritionsporttracker.controller;
 
 import com.example.nutritionsporttracker.dto.FoodItem;
+import com.example.nutritionsporttracker.dto.MealLogRequest;
+import com.example.nutritionsporttracker.dto.MealLogResponse;
 import com.example.nutritionsporttracker.dto.ProductSearchResponse;
 import com.example.nutritionsporttracker.model.MealLog;
 import com.example.nutritionsporttracker.model.MealTimeType;
+import com.example.nutritionsporttracker.model.User;
+import com.example.nutritionsporttracker.repository.UserRepository;
 import com.example.nutritionsporttracker.service.MealLogService;
 import com.example.nutritionsporttracker.service.NutritionixService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
+
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -17,42 +23,27 @@ public class MealLogController {
 
     private final MealLogService mealLogService;
     private final NutritionixService nutritionixService;
+    private final UserRepository userRepository;
 
-    public MealLogController(MealLogService mealLogService, NutritionixService nutritionixService) {
+    public MealLogController(MealLogService mealLogService,
+                             NutritionixService nutritionixService,
+                             UserRepository userRepository) {
         this.mealLogService = mealLogService;
         this.nutritionixService = nutritionixService;
+        this.userRepository = userRepository;
     }
 
-    @GetMapping("/history")//gecmişi
+    @PostMapping("/meal-logs")
+    public ResponseEntity<MealLogResponse> createMealLog(@RequestBody MealLog mealLog) {
+        return ResponseEntity.ok(mealLogService.addMealLog(mealLog));
+    }
+
+
+
+    @GetMapping("/history")
     public ResponseEntity<List<MealLog>> getMealHistory(@RequestParam Long userId) {
         List<MealLog> mealLogs = mealLogService.getMealLogsByUserId(userId);
         return mealLogs.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(mealLogs);
-    }
-
-    @PostMapping("/meal")
-    public ResponseEntity<Mono<MealLog>> addMealLog(@RequestParam Long userId, @RequestParam String foodName) {
-        Mono<ProductSearchResponse> foodData = nutritionixService.searchProductByName(foodName);
-
-        Mono<MealLog> mealLogMono = foodData.map(response -> {
-            List<FoodItem> items = response.getCommon();
-            if (items.isEmpty()) {
-                throw new RuntimeException("Food item not found: " + foodName);
-            }
-
-            FoodItem foodItem = items.get(0);
-
-            MealLog mealLog = new MealLog();
-            mealLog.setUserId(userId);
-            mealLog.setFoodName(foodItem.getFoodName());
-            mealLog.setCalories(foodItem.getCalories());
-            mealLog.setProtein(foodItem.getProtein());
-            mealLog.setCarbs(foodItem.getCarbs());
-            mealLog.setFat(foodItem.getFat());
-
-            return mealLogService.addMealLog(mealLog);
-        });
-
-        return ResponseEntity.ok(mealLogMono);
     }
 
     @GetMapping("/user/{userId}")
@@ -68,4 +59,14 @@ public class MealLogController {
         return mealLogs.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(mealLogs);
     }
 
+    @GetMapping("/history/daily")
+    public ResponseEntity<List<MealLog>> getMealLogsByDate(
+            @RequestParam Long userId,
+            @RequestParam String date // YYYY-MM-DD formatında
+    ) {
+        LocalDate localDate = LocalDate.parse(date);
+        List<MealLog> mealLogs = mealLogService.getMealLogsByUserIdAndDate(userId, localDate);
+
+        return mealLogs.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(mealLogs);
+    }
 }
