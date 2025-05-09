@@ -1,9 +1,12 @@
 package com.example.nutritionsporttracker.service;
 
 import com.example.nutritionsporttracker.dto.DailyNutritionSummary;
+import com.example.nutritionsporttracker.dto.FoodItem;
+import com.example.nutritionsporttracker.dto.MealLogRequest;
 import com.example.nutritionsporttracker.dto.MealLogResponse;
 import com.example.nutritionsporttracker.model.MealLog;
 import com.example.nutritionsporttracker.model.MealTimeType;
+import com.example.nutritionsporttracker.model.User;
 import com.example.nutritionsporttracker.repository.MealLogRepository;
 import com.example.nutritionsporttracker.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -18,17 +21,43 @@ public class MealLogService {
 
     private final MealLogRepository mealLogRepository;
     private final UserRepository userRepository;
+    private final NutritionixService nutritionixService;
 
-    public MealLogService(MealLogRepository mealLogRepository, UserRepository userRepository) {
+    public MealLogService(MealLogRepository mealLogRepository,
+                          UserRepository userRepository,
+                          NutritionixService nutritionixService) {
         this.mealLogRepository = mealLogRepository;
         this.userRepository = userRepository;
+        this.nutritionixService = nutritionixService;
     }
 
-    public MealLogResponse addMealLog(MealLog mealLog) {
-        MealLog savedMealLog = mealLogRepository.save(mealLog);
-        updateUserWithDailyTotals(savedMealLog.getUser().getId(), savedMealLog.getCreatedAt().toLocalDate());
+    public MealLogResponse addMealLog(MealLogRequest request) {
+        // 1. User'ı getir
+        User user = userRepository.findById(request.getUserId())
+                .orElseThrow(() -> new RuntimeException("Kullanıcı bulunamadı"));
 
-        // DTO'ya dönüşüm burada
+        // 2. Nutritionix API'den besin bilgisi al
+        FoodItem food = nutritionixService.searchProductByName(request.getQuery())
+                .blockOptional()
+                .orElseThrow(() -> new RuntimeException("Besin bulunamadı"))
+                .getFoods()
+                .get(0); // İlk sonucu al
+
+        // 3. MealLog nesnesi oluştur
+        MealLog mealLog = new MealLog();
+        mealLog.setUser(user);
+        mealLog.setFoodName(food.getFoodName());
+        mealLog.setCalories(food.getCalories());
+        mealLog.setProtein(food.getProtein());
+        mealLog.setCarbs(food.getCarbs());
+        mealLog.setFat(food.getFat());
+        mealLog.setMealTime(MealTimeType.valueOf(request.getMealTime()));
+
+        // 4. Kaydet ve güncelle
+        MealLog savedMealLog = mealLogRepository.save(mealLog);
+        updateUserWithDailyTotals(user.getId(), savedMealLog.getCreatedAt().toLocalDate());
+
+        // 5. Yanıt DTO'su dön
         MealLogResponse response = new MealLogResponse();
         response.setFoodName(savedMealLog.getFoodName());
         response.setCalories(savedMealLog.getCalories());
