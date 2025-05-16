@@ -1,6 +1,7 @@
 package com.example.nutritionsporttracker.service;
 
 import com.example.nutritionsporttracker.dto.AiRequestData;
+import com.example.nutritionsporttracker.util.PromptBuilder;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,7 +28,7 @@ public class AIRecommendationService {
     }
 
     public String getDailyRecommendation(AiRequestData data) {
-        String prompt = buildDailyPrompt(data);
+        String prompt = PromptBuilder.buildDailyPrompt(data);  // Prompt oluşturucu dışarı alındı
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -53,7 +54,7 @@ public class AIRecommendationService {
 
             if (response.getStatusCode() == HttpStatus.OK) {
                 String responseBody = response.getBody();
-                return extractContentFromResponse(responseBody); // Sadece content dön
+                return extractContentFromResponse(responseBody);
             } else {
                 return "AI isteği başarısız oldu: " + response.getStatusCode();
             }
@@ -63,46 +64,6 @@ public class AIRecommendationService {
         }
     }
 
-    private String buildDailyPrompt(AiRequestData data) {
-        return String.format("""
-            Kullanıcı bilgileri:
-            - Yaş: %d
-            - Cinsiyet: %s
-            - Boy: %d cm
-            - Kilo: %d kg
-            - Aktivite Seviyesi: %s
-            - Hedef: %s
-
-            Bugünkü veriler:
-            - Alınan kalori: %d kcal
-            - Yakılan kalori: %d kcal
-            - Protein: %d g
-            - Karbonhidrat: %d g
-            - Yağ: %d g
-            - Su tüketimi: %.1f litre
-            - Yapılan egzersiz: %s
-
-            Lütfen yukarıdaki verilere göre sağlıklı yaşam tavsiyesi ver. 
-            Beslenme, su tüketimi ve egzersiz hakkında öneriler içersin.
-            Cevap Türkçe ve kullanıcı dostu olsun.
-            """,
-                data.getAge(),
-                data.getGender(),
-                data.getHeight(),
-                data.getWeight(),
-                data.getActivityLevel(),
-                data.getGoal(),
-                data.getDailyCalories(),
-                data.getCaloriesBurned(),
-                data.getProtein(),
-                data.getCarbs(),
-                data.getFat(),
-                data.getWaterIntake(),
-                data.getExerciseDone()
-        );
-    }
-
-    //JSON'dan sadece "content" çeken yeni method
     private String extractContentFromResponse(String responseBody) throws Exception {
         JsonNode root = objectMapper.readTree(responseBody);
         JsonNode contentNode = root.path("choices").get(0).path("message").path("content");
