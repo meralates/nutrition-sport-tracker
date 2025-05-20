@@ -1,6 +1,8 @@
 package com.example.nutritionsporttracker.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -24,6 +26,7 @@ public class MealLog {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonBackReference
     private User user;
 
     @PrePersist
@@ -31,7 +34,8 @@ public class MealLog {
         this.createdAt = LocalDateTime.now();
     }
 
-    // Getter - Setter'lar
+    // === Getters and Setters ===
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 

@@ -1,6 +1,8 @@
 package com.example.nutritionsporttracker.model;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -35,7 +37,12 @@ public class User {
     private LocalDateTime createdAt;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
     private List<MealLog> mealLogs;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
+    private List<WorkoutLog> workoutLogs;
 
     public enum ActivityLevel {
         SEDENTARY, LIGHTLY_ACTIVE, MODERATELY_ACTIVE, VERY_ACTIVE, SUPER_ACTIVE
@@ -50,7 +57,8 @@ public class User {
         this.createdAt = LocalDateTime.now();
     }
 
-    // Getter - Setter'lar
+    // === Getters and Setters ===
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -107,4 +115,7 @@ public class User {
 
     public List<MealLog> getMealLogs() { return mealLogs; }
     public void setMealLogs(List<MealLog> mealLogs) { this.mealLogs = mealLogs; }
+
+    public List<WorkoutLog> getWorkoutLogs() { return workoutLogs; }
+    public void setWorkoutLogs(List<WorkoutLog> workoutLogs) { this.workoutLogs = workoutLogs; }
 }
