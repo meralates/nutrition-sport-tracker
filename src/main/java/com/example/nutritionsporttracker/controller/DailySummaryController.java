@@ -1,10 +1,12 @@
 package com.example.nutritionsporttracker.controller;
 
-import com.example.nutritionsporttracker.dto.DailyNutritionSummary;
-import com.example.nutritionsporttracker.service.MealLogService;
-import com.example.nutritionsporttracker.service.WaterIntakeService;
+import com.example.nutritionsporttracker.dto.DailySummaryDto;
+import com.example.nutritionsporttracker.service.DailySummaryService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 
@@ -12,26 +14,27 @@ import java.time.LocalDate;
 @RequestMapping("/api/summary")
 public class DailySummaryController {
 
-    private final MealLogService mealLogService;
-    private final WaterIntakeService waterIntakeService;
+    private final DailySummaryService dailySummaryService;
 
-    public DailySummaryController(MealLogService mealLogService, WaterIntakeService waterIntakeService) {
-        this.mealLogService = mealLogService;
-        this.waterIntakeService = waterIntakeService;
+    public DailySummaryController(DailySummaryService dailySummaryService) {
+        this.dailySummaryService = dailySummaryService;
     }
 
     @GetMapping("/daily")
-    public ResponseEntity<DailyNutritionSummary> getDailySummary(
+    public ResponseEntity<DailySummaryDto> getDailySummary(
             @RequestParam Long userId,
-            @RequestParam String date // yyyy-MM-dd format
+            @RequestParam String date // yyyy-MM-dd
     ) {
         LocalDate localDate = LocalDate.parse(date);
 
-        DailyNutritionSummary summary = mealLogService.calculateDailySummary(userId, localDate);
-        int totalWaterIntake = waterIntakeService.calculateDailyWaterIntake(userId, localDate);
+        return dailySummaryService.getDailySummaryDto(userId, localDate)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
 
-        summary.setTotalWaterIntakeMl(totalWaterIntake);
-
-        return ResponseEntity.ok(summary);
+    @GetMapping("/generate")
+    public ResponseEntity<String> generate() {
+        dailySummaryService.generateDailySummary();
+        return ResponseEntity.ok("O günün summary'leri oluşturuldu!");
     }
 }
