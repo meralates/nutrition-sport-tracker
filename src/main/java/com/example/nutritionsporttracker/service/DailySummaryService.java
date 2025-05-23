@@ -1,10 +1,12 @@
 package com.example.nutritionsporttracker.service;
 
 import com.example.nutritionsporttracker.dto.DailySummaryDto;
-import com.example.nutritionsporttracker.model.*;
-import com.example.nutritionsporttracker.repository.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.example.nutritionsporttracker.model.DailySummary;
+import com.example.nutritionsporttracker.model.User;
+import com.example.nutritionsporttracker.repository.DailySummaryRepository;
+import com.example.nutritionsporttracker.repository.UserRepository;
+import com.example.nutritionsporttracker.repository.WaterIntakeRepository;
+import com.example.nutritionsporttracker.repository.WorkoutLogRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -16,46 +18,49 @@ import java.util.Optional;
 @Service
 public class DailySummaryService {
 
-    private static final Logger logger = LoggerFactory.getLogger(DailySummaryService.class);
-
     private final UserRepository userRepository;
-    private final MealLogRepository mealLogRepository;
+    private final MealLogService mealLogService;
     private final WorkoutLogRepository workoutLogRepository;
     private final WaterIntakeRepository waterIntakeRepository;
     private final DailySummaryRepository dailySummaryRepository;
 
     public DailySummaryService(UserRepository userRepository,
-                               MealLogRepository mealLogRepository,
+                               MealLogService mealLogService,
                                WorkoutLogRepository workoutLogRepository,
                                WaterIntakeRepository waterIntakeRepository,
                                DailySummaryRepository dailySummaryRepository) {
         this.userRepository = userRepository;
-        this.mealLogRepository = mealLogRepository;
+        this.mealLogService = mealLogService;
         this.workoutLogRepository = workoutLogRepository;
         this.waterIntakeRepository = waterIntakeRepository;
         this.dailySummaryRepository = dailySummaryRepository;
     }
 
     public void generateDailySummary() {
-        logger.info("Günlük özet oluşturma işlemi başladı.");
-
         LocalDate today = LocalDate.now();
-        LocalDateTime startOfDay = today.atStartOfDay();
-        LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
+        LocalDateTime start = today.atStartOfDay();
+        LocalDateTime end = today.atTime(LocalTime.MAX);
 
         List<User> users = userRepository.findAll();
 
         for (User user : users) {
             Long userId = user.getId();
 
-            List<MealLog> todaysMeals = mealLogRepository.findByUserIdAndCreatedAtBetween(userId, startOfDay, endOfDay);
-            List<WorkoutLog> todaysWorkouts = workoutLogRepository.findByUserIdAndCreatedAtBetween(userId, startOfDay, endOfDay);
-            List<WaterIntake> todaysWater = waterIntakeRepository.findByUserIdAndCreatedAtBetween(userId, startOfDay, endOfDay);
+            // 1. Kalori alımı
+            int totalCalories = mealLogService.getMealLogsByUserIdAndDate(userId, today)
+                    .stream().mapToInt(m -> (int) m.getCalories()).sum();
 
-            double totalCalories = todaysMeals.stream().mapToDouble(MealLog::getCalories).sum();
-            double totalBurned = todaysWorkouts.stream().mapToDouble(WorkoutLog::getCaloriesBurned).sum();
-            double totalWater = todaysWater.stream().mapToDouble(WaterIntake::getAmountMl).sum();
+            // 2. Yakılan kalori
+            double totalBurned = workoutLogRepository
+                    .findByUserIdAndCreatedAtBetween(userId, start, end)
+                    .stream().mapToDouble(w -> w.getCaloriesBurned()).sum();
 
+            // 3. Su miktarı
+            double totalWater = waterIntakeRepository
+                    .findByUserIdAndCreatedAtBetween(userId, start, end)
+                    .stream().mapToInt(w -> w.getAmountMl()).sum();
+
+            // 4. Summary kaydı
             DailySummary summary = new DailySummary();
             summary.setUser(user);
             summary.setDate(today);
@@ -64,25 +69,18 @@ public class DailySummaryService {
             summary.setTotalWater(totalWater);
 
             dailySummaryRepository.save(summary);
-
-            logger.info("Kullanıcı: {} - Kalori: {}, Yakılan: {}, Su: {} ml",
-                    user.getFullName(), totalCalories, totalBurned, totalWater);
         }
-
-        logger.info("Günlük özet oluşturma tamamlandı.");
     }
-
     public Optional<DailySummaryDto> getDailySummaryDto(Long userId, LocalDate date) {
         return dailySummaryRepository.findByUser_IdAndDate(userId, date)
-                .map(summary -> {
-                    DailySummaryDto dto = new DailySummaryDto();
-                    dto.setUserId(summary.getUser().getId());
-                    dto.setUserName(summary.getUser().getFullName());
-                    dto.setDate(summary.getDate());
-                    dto.setTotalCalories(summary.getTotalCalories());
-                    dto.setTotalBurned(summary.getTotalBurned());
-                    dto.setTotalWater(summary.getTotalWater());
-                    return dto;
-                });
+                .map(summary -> new DailySummaryDto(
+                        summary.getUser().getId(),
+                        summary.getUser().getFullName(),
+                        summary.getDate(),
+                        summary.getTotalCalories(),
+                        summary.getTotalBurned(),
+                        summary.getTotalWater()
+                ));
     }
+
 }

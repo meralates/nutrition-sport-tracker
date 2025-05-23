@@ -3,6 +3,7 @@ package com.example.nutritionsporttracker.service;
 import com.example.nutritionsporttracker.model.ActivityLevel;
 import com.example.nutritionsporttracker.model.Goal;
 import com.example.nutritionsporttracker.model.User;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -74,31 +75,42 @@ public class OpenRouterService {
         }
     }
 
-    private String sendOpenRouterRequest(String userMessage) throws Exception {
-        Map<String, Object> requestJson = new HashMap<>();
-        requestJson.put("model", "mistralai/mistral-7b-instruct");
-        requestJson.put("temperature", 0.7);
-
-        Map<String, String> userMessageObj = new HashMap<>();
-        userMessageObj.put("role", "user");
-        userMessageObj.put("content", userMessage);
-
-        requestJson.put("messages", List.of(userMessageObj));
-
-        String jsonBody = objectMapper.writeValueAsString(requestJson);
-
+    public String sendOpenRouterRequest(String prompt) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("Authorization", "Bearer " + apiKey);
 
-        HttpEntity<String> entity = new HttpEntity<>(jsonBody, headers);
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("model", "mistralai/mistral-7b-instruct");
+        requestBody.put("messages", List.of(Map.of("role", "user", "content", prompt)));
+        requestBody.put("temperature", 0.7);
 
-        ResponseEntity<String> response = restTemplate.exchange(API_URL, HttpMethod.POST, entity, String.class);
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
 
-        if (response.getStatusCode() == HttpStatus.OK) {
-            return response.getBody();
-        } else {
-            throw new RuntimeException("API hatası: " + response.getStatusCode());
+        ResponseEntity<String> response = restTemplate.postForEntity(
+                "https://openrouter.ai/api/v1/chat/completions",
+                request,
+                String.class
+        );
+
+        // 🔍 Burada JSON yanıtı parse ediyoruz
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(response.getBody());
+
+            String messageContent = root
+                    .path("choices")
+                    .get(0)
+                    .path("message")
+                    .path("content")
+                    .asText();
+
+            return messageContent;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "LLM yanıtı işlenemedi.";
         }
     }
+
 }
