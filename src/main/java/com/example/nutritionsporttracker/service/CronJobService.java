@@ -24,7 +24,6 @@ public class CronJobService {
         this.cronJobLogRepository = cronJobLogRepository;
     }
 
-    // Her gün sabah 08:00'de çalışır
     @Scheduled(cron = "0 0 8 * * ?")
     public void runDailySummaryAndReportJob() {
         CronJobLog log = new CronJobLog();
@@ -33,8 +32,8 @@ public class CronJobService {
 
         try {
             System.out.println("📣 Cron job başlatıldı: Günlük özetler ve raporlar oluşturuluyor...");
-            dailySummaryService.generateDailySummary();         // Summary hesapla
-            dailyReportService.generateAndSendReports();        // Rapor oluştur + mail at
+            dailySummaryService.generateDailySummary();
+            dailyReportService.generateAndSendReports();
             log.setStatus("SUCCESS");
         } catch (Exception e) {
             log.setStatus("FAILURE: " + e.getMessage());

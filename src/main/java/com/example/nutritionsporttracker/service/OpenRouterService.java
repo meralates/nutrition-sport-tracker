@@ -51,7 +51,6 @@ public class OpenRouterService {
     }
 
     private String generateUserPrompt(User user) {
-        // Enum'ları doğru şekilde döndür
         String activityLevel = formatEnum(user.getActivityLevel().name(), User.ActivityLevel.class);
         String goal = formatEnum(user.getGoal().name(), User.Goal.class);
 
@@ -63,14 +62,11 @@ public class OpenRouterService {
             """.formatted(user.getFullName(), user.getAge(), user.getHeight(), user.getWeight(), activityLevel, goal);
     }
 
-    // Enum türlerini güvenli şekilde formatla
     private <E extends Enum<E>> String formatEnum(String value, Class<E> enumClass) {
         try {
-            // Enum değerine dönüştür ve string olarak döndür
             E enumValue = Enum.valueOf(enumClass, value.toUpperCase());
             return enumValue.toString().replace("_", " ");
         } catch (IllegalArgumentException e) {
-            // Eğer geçersiz bir değer gelirse, null döndürebiliriz veya default bir değer dönebiliriz
             return "Geçersiz değer";
         }
     }
@@ -92,8 +88,6 @@ public class OpenRouterService {
                 request,
                 String.class
         );
-
-        // 🔍 Burada JSON yanıtı parse ediyoruz
         try {
             ObjectMapper mapper = new ObjectMapper();
             JsonNode root = mapper.readTree(response.getBody());
