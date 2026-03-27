@@ -1,54 +1,82 @@
 package com.example.nutritionsporttracker.controller;
 
+import com.example.nutritionsporttracker.dto.AuthResponse;
+import com.example.nutritionsporttracker.dto.RegisterRequest;
 import com.example.nutritionsporttracker.model.User;
-import com.example.nutritionsporttracker.service.UserService;
 import com.example.nutritionsporttracker.security.JwtTokenProvider;
+import com.example.nutritionsporttracker.service.UserService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
+@Validated
 public class AuthController {
+
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtProvider;
 
-    public AuthController(UserService userService, PasswordEncoder passwordEncoder, JwtTokenProvider jwtProvider) {
+    public AuthController(UserService userService,
+                          PasswordEncoder passwordEncoder,
+                          JwtTokenProvider jwtProvider) {
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
         this.jwtProvider = jwtProvider;
     }
 
     @PostMapping("/register")
-    public ResponseEntity<User> register(@RequestBody User user) {
-        return ResponseEntity.ok(userService.registerUser(user));
+    public ResponseEntity<User> register(@RequestBody RegisterRequest registerRequest) {
+        User user = new User();
+        user.setEmail(registerRequest.getEmail());
+        user.setPassword(registerRequest.getPassword()); // ❗ service encode edecek
+        user.setFullName(registerRequest.getFullName());
+        user.setGender(registerRequest.getGender());
+        user.setAge(registerRequest.getAge());
+        user.setWeight(registerRequest.getWeight());
+        user.setHeight(registerRequest.getHeight());
+        user.setActivityLevel(registerRequest.getActivityLevel());
+        user.setGoal(registerRequest.getGoal());
+
+        User savedUser = userService.registerUser(user);
+        logger.info("Yeni kullanıcı kaydedildi: {}", savedUser.getEmail());
+        return ResponseEntity.ok(savedUser);
     }
 
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody User user) {
+    public ResponseEntity<?> login(@RequestBody User user) {
         Optional<User> foundUser = userService.findByEmail(user.getEmail());
 
         if (foundUser.isPresent()) {
-            String rawPassword = user.getPassword();
-            String encodedPassword = foundUser.get().getPassword();
+            User u = foundUser.get();
 
-            System.out.println("Girilen Şifre: " + rawPassword);
-            System.out.println("Veritabanındaki Hashlenmiş Şifre: " + encodedPassword);
+            if (passwordEncoder.matches(user.getPassword(), u.getPassword())) {
+                String token = jwtProvider.generateToken(u.getEmail());
+                logger.info("Kullanıcı giriş yaptı: {}", u.getEmail());
 
-            if (passwordEncoder.matches(rawPassword, encodedPassword)) {
-                String token = jwtProvider.generateToken(foundUser.get().getEmail());
-                return ResponseEntity.ok(token);
+                AuthResponse response = new AuthResponse(
+                        token,
+                        u.getId(),
+                        u.getFullName(),
+                        u.getEmail()
+                );
+
+                return ResponseEntity.ok(response);
             } else {
-                System.out.println("Şifre eşleşmedi!");
+                logger.warn("Hatalı şifre denemesi: {}", user.getEmail());
             }
         } else {
-            System.out.println("Kullanıcı bulunamadı!");
+            logger.warn("Kullanıcı bulunamadı: {}", user.getEmail());
         }
 
         return ResponseEntity.status(401).body("Invalid credentials");
     }
-
 }

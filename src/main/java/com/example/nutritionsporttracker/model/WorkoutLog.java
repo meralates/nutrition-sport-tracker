@@ -2,7 +2,6 @@ package com.example.nutritionsporttracker.model;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
-
 import java.time.LocalDateTime;
 
 @Entity
@@ -26,7 +25,10 @@ public class WorkoutLog {
 
     private LocalDateTime createdAt;
 
-    // === Getters and Setters ===
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+    }
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }

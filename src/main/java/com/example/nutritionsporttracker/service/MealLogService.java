@@ -1,152 +1,129 @@
 package com.example.nutritionsporttracker.service;
 
-import com.example.nutritionsporttracker.dto.DailyNutritionSummary;
-import com.example.nutritionsporttracker.dto.FoodItem;
+import com.example.nutritionsporttracker.dto.FoodSearchResponse;
 import com.example.nutritionsporttracker.dto.MealLogRequest;
 import com.example.nutritionsporttracker.dto.MealLogResponse;
 import com.example.nutritionsporttracker.model.MealLog;
-import com.example.nutritionsporttracker.model.MealTimeType;
 import com.example.nutritionsporttracker.model.User;
 import com.example.nutritionsporttracker.repository.MealLogRepository;
 import com.example.nutritionsporttracker.repository.UserRepository;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class MealLogService {
 
     private final MealLogRepository mealLogRepository;
     private final UserRepository userRepository;
-    private final NutritionixService nutritionixService;
+    private final UsdaFoodService usdaFoodService;
 
     public MealLogService(MealLogRepository mealLogRepository,
                           UserRepository userRepository,
-                          NutritionixService nutritionixService) {
+                          UsdaFoodService usdaFoodService) {
         this.mealLogRepository = mealLogRepository;
         this.userRepository = userRepository;
-        this.nutritionixService = nutritionixService;
+        this.usdaFoodService = usdaFoodService;
     }
 
-    public MealLogResponse addMealLog(MealLogRequest request) {
-        // 1. User'ı getir
-        User user = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new RuntimeException("Kullanıcı bulunamadı"));
+    public List<FoodSearchResponse> searchFoods(String query) {
+        List<JsonNode> foods = usdaFoodService.searchFoods(query);
 
-        // 2. Nutritionix API'den besin bilgisi al
-        FoodItem food = nutritionixService.searchProductByName(request.getQuery())
-                .blockOptional()
-                .orElseThrow(() -> new RuntimeException("Besin bulunamadı"))
-                .getFoods()
-                .get(0); // İlk sonucu al
-
-        // 3. MealLog nesnesi oluştur
-        MealLog mealLog = new MealLog();
-        mealLog.setUser(user);
-        mealLog.setFoodName(food.getFoodName());
-        mealLog.setCalories(food.getCalories());
-        mealLog.setProtein(food.getProtein());
-        mealLog.setCarbs(food.getCarbs());
-        mealLog.setFat(food.getFat());
-        mealLog.setMealTime(MealTimeType.valueOf(request.getMealTime()));
-
-        // 4. Kaydet ve güncelle
-        MealLog savedMealLog = mealLogRepository.save(mealLog);
-        updateUserWithDailyTotals(user.getId(), savedMealLog.getCreatedAt().toLocalDate());
-
-        // 5. Yanıt DTO'su dön
-        MealLogResponse response = new MealLogResponse();
-        response.setFoodName(savedMealLog.getFoodName());
-        response.setCalories(savedMealLog.getCalories());
-        response.setProtein(savedMealLog.getProtein());
-        response.setCarbs(savedMealLog.getCarbs());
-        response.setFat(savedMealLog.getFat());
-        response.setMealTime(savedMealLog.getMealTime().name());
-        response.setCreatedAt(savedMealLog.getCreatedAt().toString());
-
-        return response;
+        return foods.stream()
+                .limit(5)
+                .map(food -> new FoodSearchResponse(
+                        food.path("fdcId").asText(""),
+                        food.path("description").asText("Unknown Food"),
+                        usdaFoodService.extractNutrient(food, "Energy", "Energy (Atwater General)"),
+                        usdaFoodService.extractNutrient(food, "Protein"),
+                        usdaFoodService.extractNutrient(food, "Carbohydrate, by difference"),
+                        usdaFoodService.extractNutrient(food, "Total lipid (fat)")
+                ))
+                .collect(Collectors.toList());
     }
 
+    public MealLogResponse addMeal(MealLogRequest request, String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-    public List<MealLog> getMealLogsByUserId(Long userId) {
-        return mealLogRepository.findByUserId(userId);
+        MealLog log = new MealLog();
+        log.setUser(user);
+        log.setFoodName(request.getFoodName());
+        log.setMealTime(request.getMealTime());
+        log.setGrams(request.getGrams());
+        log.setCalories(round1(request.getCalories()));
+        log.setProtein(round1(request.getProtein()));
+        log.setCarbs(round1(request.getCarbs()));
+        log.setFat(round1(request.getFat()));
+        log.setSourceFoodId(request.getSourceFoodId());
+
+        MealLog saved = mealLogRepository.save(log);
+        return toResponse(saved);
     }
 
-    public List<MealLog> getMealLogsByUserIdAndMealTime(Long userId, MealTimeType mealTime) {
-        return mealLogRepository.findByUserIdAndMealTime(userId, mealTime);
+    public List<MealLogResponse> getMealsToday(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        LocalDate today = LocalDate.now();
+        LocalDateTime start = today.atStartOfDay();
+        LocalDateTime end = today.atTime(LocalTime.MAX);
+
+        List<MealLog> logs = mealLogRepository.findByUserIdAndCreatedAtBetween(user.getId(), start, end);
+
+        return logs.stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
     }
 
-    public List<MealLog> getMealLogsByUserIdAndDate(Long userId, LocalDate date) {
-        LocalDateTime startOfDay = date.atStartOfDay();
-        LocalDateTime endOfDay = date.atTime(LocalTime.MAX);
-        return mealLogRepository.findByUserIdAndCreatedAtBetween(userId, startOfDay, endOfDay);
+    public List<MealLogResponse> getMealsBetween(String email, LocalDate dateFrom, LocalDate dateTo) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        LocalDateTime start = dateFrom.atStartOfDay();
+        LocalDateTime end = dateTo.atTime(LocalTime.MAX);
+
+        List<MealLog> logs = mealLogRepository.findByUserIdAndCreatedAtBetween(user.getId(), start, end);
+
+        return logs.stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
     }
 
-    public DailyNutritionSummary calculateDailySummary(Long userId, LocalDate date) {
-        List<MealLog> mealLogs = getMealLogsByUserIdAndDate(userId, date);
+    public void deleteMeal(Long mealId, String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        DailyNutritionSummary summary = new DailyNutritionSummary();
+        MealLog mealLog = mealLogRepository.findById(mealId)
+                .orElseThrow(() -> new RuntimeException("Meal record not found"));
 
-        if (mealLogs == null || mealLogs.isEmpty()) {
-            summary.setTotalCalories(0);
-            summary.setTotalProtein(0.0);
-            summary.setTotalCarbs(0.0);
-            summary.setTotalFat(0.0);
-            return summary;
+        if (mealLog.getUser() == null || !mealLog.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("You are not authorized to delete this meal record");
         }
 
-        int totalCalories = mealLogs.stream()
-                .mapToInt(m -> (int) m.getCalories())
-                .sum();
-
-        double totalProtein = mealLogs.stream()
-                .mapToDouble(MealLog::getProtein)
-                .sum();
-
-        double totalCarbs = mealLogs.stream()
-                .mapToDouble(MealLog::getCarbs)
-                .sum();
-
-        double totalFat = mealLogs.stream()
-                .mapToDouble(MealLog::getFat)
-                .sum();
-
-        summary.setTotalCalories(totalCalories);
-        summary.setTotalProtein(totalProtein);
-        summary.setTotalCarbs(totalCarbs);
-        summary.setTotalFat(totalFat);
-
-        return summary;
+        mealLogRepository.delete(mealLog);
     }
 
-    private void updateUserWithDailyTotals(Long userId, LocalDate date) {
-        List<MealLog> todaysLogs = getMealLogsByUserIdAndDate(userId, date);
+    private MealLogResponse toResponse(MealLog saved) {
+        return new MealLogResponse(
+                saved.getId(),
+                saved.getFoodName(),
+                saved.getCalories(),
+                saved.getProtein(),
+                saved.getCarbs(),
+                saved.getFat(),
+                saved.getGrams(),
+                saved.getMealTime(),
+                saved.getCreatedAt() != null ? saved.getCreatedAt().toString() : null
+        );
+    }
 
-        int totalCalories = todaysLogs.stream()
-                .mapToInt(m -> (int) m.getCalories())
-                .sum();
-
-        double totalProtein = todaysLogs.stream()
-                .mapToDouble(MealLog::getProtein)
-                .sum();
-
-        double totalCarbs = todaysLogs.stream()
-                .mapToDouble(MealLog::getCarbs)
-                .sum();
-
-        double totalFat = todaysLogs.stream()
-                .mapToDouble(MealLog::getFat)
-                .sum();
-
-        userRepository.findById(userId).ifPresent(user -> {
-            user.setDailyCalories((double) totalCalories);
-            user.setProtein(totalProtein);
-            user.setCarbs(totalCarbs);
-            user.setFat(totalFat);
-            userRepository.save(user);
-        });
+    private double round1(double value) {
+        return Math.round(value * 10.0) / 10.0;
     }
 }

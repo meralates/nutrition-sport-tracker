@@ -1,7 +1,6 @@
 package com.example.nutritionsporttracker.model;
 
 import jakarta.persistence.*;
-
 import java.time.LocalDateTime;
 
 @Entity
@@ -16,38 +15,22 @@ public class WaterIntake {
     private User user;
 
     private Integer amountMl;
-
     private LocalDateTime createdAt;
 
-    public Long getId() {
-        return id;
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
     }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public User getUser() {
-        return user;
-    }
+    public User getUser() { return user; }
+    public void setUser(User user) { this.user = user; }
 
-    public void setUser(User user) {
-        this.user = user;
-    }
+    public Integer getAmountMl() { return amountMl; }
+    public void setAmountMl(Integer amountMl) { this.amountMl = amountMl; }
 
-    public Integer getAmountMl() {
-        return amountMl;
-    }
-
-    public void setAmountMl(Integer amountMl) {
-        this.amountMl = amountMl;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

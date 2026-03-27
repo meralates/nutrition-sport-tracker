@@ -5,6 +5,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
+@Table(name = "daily_summary",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "date"}))
 public class DailySummary {
 
     @Id
@@ -19,6 +21,12 @@ public class DailySummary {
     private double totalBurned;
     private double totalWater;
     private LocalDate date;
+
+    // ✅ Sprint1: AI cevabı burada saklanacak
+    @Lob
+    private String aiReportText;
+
+    private LocalDateTime aiGeneratedAt;
 
     private LocalDateTime createdAt;
 
@@ -45,6 +53,12 @@ public class DailySummary {
 
     public LocalDate getDate() { return date; }
     public void setDate(LocalDate date) { this.date = date; }
+
+    public String getAiReportText() { return aiReportText; }
+    public void setAiReportText(String aiReportText) { this.aiReportText = aiReportText; }
+
+    public LocalDateTime getAiGeneratedAt() { return aiGeneratedAt; }
+    public void setAiGeneratedAt(LocalDateTime aiGeneratedAt) { this.aiGeneratedAt = aiGeneratedAt; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

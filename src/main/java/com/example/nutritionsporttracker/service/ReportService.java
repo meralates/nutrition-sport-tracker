@@ -23,36 +23,49 @@ public class ReportService {
     private final UserRepository userRepository;
     private final RestTemplate restTemplate = new RestTemplate();
 
-    @Value("${openrouter.api.key}")
+    // boşsa app patlamasın ama rapor üretirken hata verelim
+    @Value("${openrouter.api.key:}")
     private String apiKey;
 
-    public ReportService(ReportRepository reportRepository, UserRepository userRepository) {
+    @Value("${openrouter.model:mistralai/mistral-7b-instruct}")
+    private String model;
+
+    public ReportService(ReportRepository reportRepository,
+                         UserRepository userRepository) {
         this.reportRepository = reportRepository;
         this.userRepository = userRepository;
     }
 
-    public Reports generateWeeklyReport(Long userId) {
-        User user = getUserById(userId);
-        List<Reports> weeklyReports = getReportsFromLastWeek();
+    // ✅ JWT principal'dan gelen email ile haftalık rapor
+    public Reports generateWeeklyReport(String email) {
+        ensureOpenRouterEnabled();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Kullanıcı bulunamadı: " + email));
+
+        LocalDateTime oneWeekAgo = LocalDateTime.now().minus(WEEK_DURATION_DAYS, ChronoUnit.DAYS);
+
+        // ✅ Sadece bu user'ın son 7 günlük report'ları
+        // Repo tarafına aşağıdaki methodu eklemen gerekiyor:
+        // List<Reports> findByUserIdAndGeneratedAtAfter(Long userId, LocalDateTime startDate);
+        List<Reports> weeklyReports = reportRepository.findByUserIdAndGeneratedAtAfter(user.getId(), oneWeekAgo);
 
         if (weeklyReports.isEmpty()) {
-            throw new RuntimeException("No reports found for the past 7 days.");
+            throw new RuntimeException("Son 7 günde bu kullanıcı için rapor yok.");
         }
 
         ReportAverages averages = calculateAverages(weeklyReports);
-        String aiAnalysis = getWeeklyAnalysisFromAI(user, averages);
+        String aiText = getWeeklyAnalysisFromAI(user, averages);
 
-        return saveReport(user, averages, aiAnalysis);
+        return saveReport(user, averages, aiText);
     }
 
-    private User getUserById(Long userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User with ID " + userId + " not found."));
-    }
-
-    private List<Reports> getReportsFromLastWeek() {
-        LocalDateTime oneWeekAgo = LocalDateTime.now().minus(WEEK_DURATION_DAYS, ChronoUnit.DAYS);
-        return reportRepository.findByGeneratedAtAfter(oneWeekAgo);
+    private void ensureOpenRouterEnabled() {
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new IllegalStateException(
+                    "OpenRouter API key missing. application.properties içine openrouter.api.key eklemelisin."
+            );
+        }
     }
 
     private ReportAverages calculateAverages(List<Reports> reports) {
@@ -75,6 +88,7 @@ public class ReportService {
         report.setUser(user);
         report.setGeneratedAt(LocalDateTime.now());
         report.setReportText(aiText);
+
         report.setCaloriesIn(avg.caloriesIn());
         report.setCaloriesOut(avg.caloriesOut());
         report.setAvgProtein(avg.protein());
@@ -87,62 +101,89 @@ public class ReportService {
 
     private String getWeeklyAnalysisFromAI(User user, ReportAverages avg) {
         String prompt = """
-            User: %s, %d years old, %s kg, %s cm.
-            Activity level: %s, Goal: %s.
-            Last week's nutrition and exercise summary:
-            - Calories in: %.2f kcal
-            - Calories out: %.2f kcal
-            - Protein: %.2f g
-            - Carbs: %.2f g
-            - Fat: %.2f g
-            - Water: %.2f L
-            Please analyze the data and suggest improvements.
+            You are a fitness & nutrition coach.
+            Create a weekly evaluation and action plan.
+
+            User profile:
+            - Name: %s
+            - Age: %s
+            - Weight(kg): %s
+            - Height(cm): %s
+            - Activity level: %s
+            - Goal: %s
+
+            Weekly averages (last 7 days):
+            - Calories in (kcal): %.2f
+            - Calories out (kcal): %.2f
+            - Protein (g): %.2f
+            - Carbs (g): %.2f
+            - Fat (g): %.2f
+            - Water: %.2f
+
+            Output requirements:
+            1) Short summary (2-3 lines)
+            2) What is good (bullets)
+            3) What needs improvement (bullets)
+            4) Concrete plan for next week (bullets)
+            5) One motivational sentence
             """
-                .formatted(user.getFullName(), user.getAge(), user.getWeight(), user.getHeight(),
-                        user.getActivityLevel(), user.getGoal(),
-                        avg.caloriesIn(), avg.caloriesOut(), avg.protein(), avg.carbs(), avg.fat(), avg.water());
+                .formatted(
+                        safe(user.getFullName()),
+                        safe(user.getAge()),
+                        safe(user.getWeight()),
+                        safe(user.getHeight()),
+                        safe(user.getActivityLevel()),
+                        safe(user.getGoal()),
+                        avg.caloriesIn(), avg.caloriesOut(),
+                        avg.protein(), avg.carbs(), avg.fat(), avg.water()
+                );
 
         return callAI(prompt);
     }
 
     private String callAI(String prompt) {
         Map<String, Object> requestJson = new HashMap<>();
-        requestJson.put("model", "mistralai/mistral-7b-instruct");
+        requestJson.put("model", model);
         requestJson.put("temperature", 0.7);
-        requestJson.put("messages", List.of(Map.of("role", "user", "content", prompt)));
+
+        // OpenAI-compatible format
+        requestJson.put("messages", List.of(
+                Map.of("role", "user", "content", prompt)
+        ));
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("Authorization", "Bearer " + apiKey);
+        headers.setBearerAuth(apiKey);
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestJson, headers);
+
         ResponseEntity<Map> response = restTemplate.exchange(
                 "https://openrouter.ai/api/v1/chat/completions",
-                HttpMethod.POST, entity, Map.class);
+                HttpMethod.POST,
+                entity,
+                Map.class
+        );
 
-        if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-            try {
-                List<Map<String, Object>> choices = (List<Map<String, Object>>) response.getBody().get("choices");
-                Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
-                return (String) message.get("content");
-            } catch (Exception e) {
-                return "AI response parsing error.";
-            }
+        if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+            throw new RuntimeException("AI analysis request failed. status=" + response.getStatusCode());
         }
-        return "AI analysis request failed.";
+
+        try {
+            List<Map<String, Object>> choices =
+                    (List<Map<String, Object>>) response.getBody().get("choices");
+            Map<String, Object> message =
+                    (Map<String, Object>) choices.get(0).get("message");
+            return String.valueOf(message.get("content"));
+        } catch (Exception e) {
+            throw new RuntimeException("AI response parsing error: " + e.getMessage());
+        }
     }
 
-    public Reports addReport(Reports report) {
-        return reportRepository.save(report);
+    private String safe(Object o) {
+        return o == null ? "-" : String.valueOf(o);
     }
 
-    public List<Reports> getReportsByUserId(Long userId) {
-        return reportRepository.findByUserId(userId);
-    }
-
-    /**
-     * DTO class to bundle average data
-     */
+    // DTO (record)
     private record ReportAverages(
             double caloriesIn,
             double caloriesOut,

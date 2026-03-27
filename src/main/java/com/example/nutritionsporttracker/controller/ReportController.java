@@ -5,31 +5,24 @@ import com.example.nutritionsporttracker.service.ReportService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.security.Principal;
 
 @RestController
-@RequestMapping("/api/reports")
+@RequestMapping("/api/report")
 public class ReportController {
 
     private final ReportService reportService;
+
     public ReportController(ReportService reportService) {
         this.reportService = reportService;
     }
 
-    @PostMapping
-    public ResponseEntity<Reports> createReport(@RequestBody Reports report) {
-        return ResponseEntity.ok(reportService.addReport(report));
-    }
-
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<List<Reports>> getReportsByUserId(@PathVariable Long userId) {
-        List<Reports> reports = reportService.getReportsByUserId(userId);
-        return reports.isEmpty() ? ResponseEntity.notFound().build() : ResponseEntity.ok(reports);
-    }
-
+    //  GET http://localhost:8080/api/report/weekly
+    // Header: Authorization: Bearer <jwt>
     @GetMapping("/weekly")
-    public ResponseEntity<Reports> getWeeklyReport(@RequestParam Long userId) {
-        Reports weeklyReport = reportService.generateWeeklyReport(userId);
-        return ResponseEntity.ok(weeklyReport);
+    public ResponseEntity<Reports> weekly(Principal principal) {
+        String email = principal.getName(); // JWT -> username/email
+        Reports report = reportService.generateWeeklyReport(email);
+        return ResponseEntity.ok(report);
     }
 }

@@ -2,12 +2,12 @@ package com.example.nutritionsporttracker.controller;
 
 import com.example.nutritionsporttracker.dto.ExerciseRequest;
 import com.example.nutritionsporttracker.model.WorkoutLog;
+import com.example.nutritionsporttracker.security.CustomUserDetails;
 import com.example.nutritionsporttracker.service.ExerciseService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -22,8 +22,30 @@ public class ExerciseController {
     }
 
     @PostMapping("/log")
-    public ResponseEntity<List<WorkoutLog>> logExercise(@RequestBody ExerciseRequest request) {
-        List<WorkoutLog> logs = exerciseService.processExercise(request.getUserId(), request.getQuery());
-        return ResponseEntity.ok(logs);
+    public ResponseEntity<WorkoutLog> logExercise(
+            @AuthenticationPrincipal CustomUserDetails me,
+            @Valid @RequestBody ExerciseRequest request
+    ) {
+        WorkoutLog log = exerciseService.logExercise(
+                me.getId(),
+                request.getExerciseType(),
+                request.getExerciseName(),
+                request.getDurationMinutes()
+        );
+        return ResponseEntity.ok(log);
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<List<WorkoutLog>> getMyLogs(@AuthenticationPrincipal CustomUserDetails me) {
+        return ResponseEntity.ok(exerciseService.getLogsByUser(me.getId()));
+    }
+
+    @DeleteMapping("/{logId}")
+    public ResponseEntity<Void> deleteExercise(
+            @PathVariable Long logId,
+            @AuthenticationPrincipal CustomUserDetails me
+    ) {
+        exerciseService.deleteExercise(logId, me.getId());
+        return ResponseEntity.noContent().build();
     }
 }

@@ -9,5 +9,4 @@ import java.util.List;
 public interface WaterIntakeRepository extends JpaRepository<WaterIntake, Long> {
     List<WaterIntake> findByUserId(Long userId);
     List<WaterIntake> findByUserIdAndCreatedAtBetween(Long userId, LocalDateTime start, LocalDateTime end);
-
 }

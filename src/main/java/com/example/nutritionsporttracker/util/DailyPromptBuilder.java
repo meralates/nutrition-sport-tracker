@@ -6,22 +6,39 @@ import com.example.nutritionsporttracker.model.User;
 public class DailyPromptBuilder {
 
     public static String build(User user, DailySummary summary) {
+
+        String name = (user.getFullName() == null || user.getFullName().isBlank())
+                ? "Kullanıcı"
+                : user.getFullName();
+
+        String goal = (user.getGoal() != null)
+                ? user.getGoal().name()
+                : "BELİRSİZ";
+
         return """
-                Merhaba! İşte kullanıcının günlük sağlık özeti:
+                Sen deneyimli bir beslenme ve egzersiz koçusun.
 
-                📅 Tarih: %s
-                👤 İsim: %s
-                🎯 Hedef: %s
+                Aşağıdaki günlük sağlık verilerine göre kullanıcıyı analiz et.
+                Cevabın:
+                - Kısa bir genel değerlendirme
+                - 2-3 somut öneri
+                - Motive edici bir kapanış cümlesi
+                - Türkçe yaz
+                - Çok uzun olmasın (maksimum 8-10 cümle)
 
-                🍽️ Alınan Kalori: %.0f kcal
-                🔥 Yakılan Kalori: %.0f kcal
-                🚰 Su Tüketimi: %.0f ml
+                ---- KULLANICI VERİLERİ ----
+                Tarih: %s
+                İsim: %s
+                Hedef: %s
 
-                Bu değerlere göre gününü analiz et ve kullanıcıya yarın için motivasyon verici, pratik ve bilimsel öneriler sun.
+                Alınan Kalori: %.0f kcal
+                Yakılan Kalori: %.0f kcal
+                Su Tüketimi: %.0f ml
+                --------------------------------
                 """.formatted(
                 summary.getDate(),
-                user.getFullName(),
-                user.getGoal() != null ? user.getGoal().name() : "BELİRSİZ",
+                name,
+                goal,
                 summary.getTotalCalories(),
                 summary.getTotalBurned(),
                 summary.getTotalWater()

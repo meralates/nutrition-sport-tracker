@@ -1,29 +1,17 @@
 package com.example.nutritionsporttracker.service;
 
+import com.example.nutritionsporttracker.model.ExerciseType;
 import com.example.nutritionsporttracker.model.User;
 import com.example.nutritionsporttracker.model.WorkoutLog;
-import com.example.nutritionsporttracker.model.ExerciseType;
 import com.example.nutritionsporttracker.repository.UserRepository;
 import com.example.nutritionsporttracker.repository.WorkoutLogRepository;
-import com.fasterxml.jackson.databind.JsonNode;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
-import java.time.LocalDateTime;
-import java.util.*;
+import java.util.List;
 
 @Service
 public class ExerciseService {
 
-    @Value("${nutritionix.app.id}")
-    private String appId;
-
-    @Value("${nutritionix.api.key}") // <== Burada değiştirildi
-    private String appKey;
-
-    private final RestTemplate restTemplate = new RestTemplate();
     private final UserRepository userRepository;
     private final WorkoutLogRepository workoutLogRepository;
 
@@ -33,47 +21,83 @@ public class ExerciseService {
         this.workoutLogRepository = workoutLogRepository;
     }
 
-    public List<WorkoutLog> processExercise(Long userId, String query) {
+    public WorkoutLog logExercise(Long userId,
+                                  ExerciseType type,
+                                  String exerciseName,
+                                  Integer durationMinutes) {
+
+        if (durationMinutes == null || durationMinutes < 1) {
+            throw new IllegalArgumentException("durationMinutes must be >= 1");
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Kullanıcı bulunamadı"));
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("x-app-id", appId);
-        headers.set("x-app-key", appKey);
-        headers.setContentType(MediaType.APPLICATION_JSON);
+        double weightKg = (user.getWeight() != null && user.getWeight() > 0)
+                ? user.getWeight()
+                : 70.0;
 
-        Map<String, Object> body = new HashMap<>();
-        body.put("query", query);
-        body.put("gender", user.getGender());
-        body.put("weight_kg", user.getWeight());
-        body.put("height_cm", user.getHeight());
-        body.put("age", user.getAge());
+        double met = metFor(type);
+        double calories = calcCalories(met, weightKg, durationMinutes);
 
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
-        String url = "https://trackapi.nutritionix.com/v2/natural/exercise";
+        WorkoutLog log = new WorkoutLog();
+        log.setUser(user);
+        log.setExerciseType(type);
+        log.setDurationMinutes(durationMinutes);
+        log.setCaloriesBurned(round1(calories));
 
-        ResponseEntity<JsonNode> response = restTemplate.exchange(
-                url,
-                HttpMethod.POST,
-                entity,
-                JsonNode.class
-        );
+        String name = (exerciseName != null && !exerciseName.isBlank())
+                ? exerciseName.trim()
+                : defaultNameFor(type);
 
-        JsonNode exercises = response.getBody().get("exercises");
-        List<WorkoutLog> savedLogs = new ArrayList<>();
+        log.setExerciseName(name);
 
-        for (JsonNode ex : exercises) {
-            WorkoutLog log = new WorkoutLog();
-            log.setUser(user);
-            log.setExerciseName(ex.get("name").asText());
-            log.setDurationMinutes(ex.get("duration_min").asInt());
-            log.setCaloriesBurned(ex.get("nf_calories").asDouble());
-            log.setExerciseType(ExerciseType.OTHER);
-            log.setCreatedAt(LocalDateTime.now());
+        return workoutLogRepository.save(log);
+    }
 
-            savedLogs.add(workoutLogRepository.save(log));
+    public List<WorkoutLog> getLogsByUser(Long userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new RuntimeException("Kullanıcı bulunamadı");
+        }
+        return workoutLogRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    }
+
+    public void deleteExercise(Long logId, Long userId) {
+        WorkoutLog workoutLog = workoutLogRepository.findById(logId)
+                .orElseThrow(() -> new RuntimeException("Egzersiz kaydı bulunamadı"));
+
+        if (workoutLog.getUser() == null || !workoutLog.getUser().getId().equals(userId)) {
+            throw new RuntimeException("Bu egzersiz kaydını silme yetkiniz yok");
         }
 
-        return savedLogs;
+        workoutLogRepository.delete(workoutLog);
+    }
+
+    private double metFor(ExerciseType type) {
+        return switch (type) {
+            case CARDIO -> 8.0;
+            case STRENGTH -> 6.0;
+            case FLEXIBILITY -> 2.5;
+            case BALANCE -> 3.0;
+            case OTHER -> 5.0;
+        };
+    }
+
+    private String defaultNameFor(ExerciseType type) {
+        return switch (type) {
+            case CARDIO -> "Cardio";
+            case STRENGTH -> "Strength";
+            case FLEXIBILITY -> "Flexibility";
+            case BALANCE -> "Balance";
+            case OTHER -> "Workout";
+        };
+    }
+
+    private double calcCalories(double met, double weightKg, int minutes) {
+        return met * 3.5 * weightKg / 200.0 * minutes;
+    }
+
+    private double round1(double v) {
+        return Math.round(v * 10.0) / 10.0;
     }
 }

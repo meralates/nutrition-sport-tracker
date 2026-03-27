@@ -1,21 +1,56 @@
 package com.example.nutritionsporttracker.dto;
 
-public class AiRequestData {
-    private int age;
-    private String gender;
-    private int height;
-    private int weight;
-    private String activityLevel;
-    private String goal;
-    private int dailyCalories;
-    private int caloriesBurned;
-    private int protein;
-    private int carbs;
-    private int fat;
-    private double waterIntake;
-    private String exerciseDone;
+import jakarta.validation.constraints.*;
 
-    // --- Constructor ---
+/**
+ * Kullanıcının günlük verilerinden yapay zeka önerisi üretmek için kullanılan DTO.
+ * Tüm sayısal değerler makul sınırlarla doğrulanır.
+ */
+public class AiRequestData {
+
+    @Min(12) @Max(100)
+    private int age;
+
+    @NotBlank
+    private String gender;
+
+    @Min(100) @Max(250)
+    private int height; // cm
+
+    @Min(30) @Max(300)
+    private int weight; // kg
+
+    @NotBlank
+    private String activityLevel; // örn: "MODERATE"
+
+    @NotBlank
+    private String goal; // örn: "FAT_LOSS"
+
+    @PositiveOrZero
+    private int dailyCalories;
+
+    @PositiveOrZero
+    private int caloriesBurned;
+
+    @PositiveOrZero
+    private int protein;
+
+    @PositiveOrZero
+    private int carbs;
+
+    @PositiveOrZero
+    private int fat;
+
+    @DecimalMin(value = "0.0") @DecimalMax(value = "10.0")
+    private double waterIntake; // litre
+
+    @Size(max = 200)
+    private String exerciseDone; // örn: "30dk koşu, 20dk ağırlık"
+
+    // ---- Constructors ----
+    public AiRequestData() {
+    }
+
     public AiRequestData(int age, String gender, int height, int weight, String activityLevel,
                          String goal, int dailyCalories, int caloriesBurned,
                          int protein, int carbs, int fat, double waterIntake,
@@ -35,7 +70,7 @@ public class AiRequestData {
         this.exerciseDone = exerciseDone;
     }
 
-    // --- Getters and Setters ---
+    // ---- Getters & Setters ----
     public int getAge() { return age; }
     public void setAge(int age) { this.age = age; }
 

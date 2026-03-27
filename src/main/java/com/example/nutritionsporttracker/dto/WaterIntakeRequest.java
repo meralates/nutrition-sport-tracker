@@ -1,10 +1,15 @@
 package com.example.nutritionsporttracker.dto;
 
-public class WaterIntakeRequest {
-    private Long userId;
-    private Integer amount;
+import jakarta.validation.constraints.*;
 
-    public Long getUserId() {
+public class WaterIntakeRequest {
+    @NotNull
+    private Long userId;
+
+    @NotNull @Positive
+    private Integer amount; // ml
+
+public Long getUserId() {
         return userId;
     }
 

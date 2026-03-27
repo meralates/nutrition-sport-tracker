@@ -1,7 +1,8 @@
 package com.example.nutritionsporttracker.service;
 
-import org.springframework.mail.SimpleMailMessage;
+import jakarta.mail.internet.MimeMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -13,12 +14,18 @@ public class EmailService {
         this.javaMailSender = javaMailSender;
     }
 
-    public void sendEmail(String to, String subject, String text) {
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setTo(to);
-        message.setSubject(subject);
-        message.setText(text);
-        message.setFrom("meralates2002@gmail.com"); //gönderen
-        javaMailSender.send(message);
+    // ✅ HTML mail
+    public void sendHtmlEmail(String to, String subject, String html) {
+        try {
+            MimeMessage mime = javaMailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mime, "UTF-8");
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(html, true); // true => HTML
+            helper.setFrom("meralates2002@gmail.com");
+             javaMailSender.send(mime);
+        } catch (Exception e) {
+            throw new RuntimeException("Email gönderilemedi: " + e.getMessage(), e);
+        }
     }
 }
