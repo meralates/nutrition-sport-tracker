@@ -1,6 +1,8 @@
 package com.example.nutritionsporttracker.security;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
+import org.springframework.boot.actuate.health.HealthEndpoint;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -66,13 +68,19 @@ public class SecurityConfig {
         }
 
         configuration.setAllowedOriginPatterns(origins);
+
         configuration.setAllowedMethods(
                 List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
         );
+
         configuration.setAllowedHeaders(
                 List.of("Authorization", "Content-Type", "Accept")
         );
-        configuration.setExposedHeaders(List.of("Authorization"));
+
+        configuration.setExposedHeaders(
+                List.of("Authorization")
+        );
+
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source =
@@ -89,23 +97,41 @@ public class SecurityConfig {
 
         http
                 .csrf(csrf -> csrf.disable())
+
                 .cors(cors ->
                         cors.configurationSource(corsConfigurationSource())
                 )
+
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(
                                 SessionCreationPolicy.STATELESS
                         )
                 )
+
                 .exceptionHandling(exception ->
                         exception.authenticationEntryPoint(restAuthEntryPoint())
                 )
+
                 .authorizeHttpRequests(auth -> auth
+
+                        // Auth endpointleri public
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                        // Actuator health endpoint public
+                        .requestMatchers(
+                                EndpointRequest.to(HealthEndpoint.class)
+                        ).permitAll()
+
+                        // CORS preflight requestleri
+                        .requestMatchers(
+                                HttpMethod.OPTIONS,
+                                "/**"
+                        ).permitAll()
+
+                        // Geri kalan tüm endpointler JWT ister
                         .anyRequest().authenticated()
                 )
+
                 .addFilterBefore(
                         jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class
