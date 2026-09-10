@@ -5,7 +5,7 @@ import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
-
+import com.fasterxml.jackson.annotation.JsonProperty;
 @Entity
 public class User {
 
@@ -14,6 +14,7 @@ public class User {
     private Long id;
 
     private String email;
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
     private String fullName;
     private Integer age;
